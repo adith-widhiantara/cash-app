@@ -70,6 +70,23 @@ response time does not reveal which emails exist. There is no rate limiting
 yet: acceptable while the app is only reachable over Tailscale, and worth
 revisiting before any public hosting.
 
+`src/proxy.ts` protects every page except `/masuk` and `/daftar`. The file
+is named `proxy`, not `middleware`: Next.js 16 deprecated the middleware
+convention, and a build fails if both files exist. Proxy runs on the
+Node.js runtime, but it stays database-free by choice, because Next.js
+documents that proxy should not rely on shared modules and a query per
+request is expensive. A revoked session therefore still passes proxy and
+is rejected by `getCurrentUser()` on the page. That is intended: proxy is a
+cheap filter, not the authority.
+
+The pages are deliberately plain. Design tokens, the DESIGN.md palette, and
+Plus Jakarta Sans arrive in phase 3 together with the antislop skills.
+Do not style these pages before then; the work would be thrown away.
+
+Do not grep rendered HTML for a phrase that interpolates a variable. React
+splits those into separate text nodes, so the whole phrase never appears
+contiguously.
+
 Helper scripts run with `tsx` must wrap their work in `async function
 main()`. `package.json` has no `"type": "module"`, so tsx compiles them as
 CommonJS and rejects top-level `await`.
@@ -146,6 +163,7 @@ phase 4, where a 50+ case test suite will cover them:
 | TASK-03c | runtime probe, Prisma client resolves | done |
 | TASK-05 | auth primitives: password hashing, session tokens, tokenVersion | done |
 | TASK-06 | auth API routes: register, login, logout, me | done |
+| TASK-07 | login and register pages, route protection | done |
 | TASK-04 | production stage for the Mac mini | not started |
 
 Placeholder pages were dropped from TASK-02 on purpose. They prove nothing
