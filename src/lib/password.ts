@@ -15,6 +15,19 @@ const PARAMS = { N: 16384, r: 8, p: 1, maxmem: 64 * 1024 * 1024 };
 const KEY_LENGTH = 64;
 const SALT_LENGTH = 16;
 
+// Readable alphabet: removes 0/O, 1/l/I to avoid transcription errors.
+const TEMP_PASSWORD_ALPHABET =
+  "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+
+/** Generates a 12-character secure temporary password with no ambiguous characters. */
+export function generateTempPassword(): string {
+  const bytes = randomBytes(12);
+  return Array.from(
+    bytes,
+    (b) => TEMP_PASSWORD_ALPHABET[b % TEMP_PASSWORD_ALPHABET.length],
+  ).join("");
+}
+
 export const MIN_PASSWORD_LENGTH = 8;
 
 /** Stored as scrypt$N$r$p$salt$hash, all base64url. */

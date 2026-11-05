@@ -105,6 +105,15 @@ session is live. A 401 and a 403 mean different things: a revoked cookie is
 rejected before the role check runs, so an authorisation path can look
 tested when it never ran.
 
+The settings page lives at `/pengaturan`. When the owner creates a member
+account, the route generates a 12-character temp password from an unambiguous
+alphabet (no 0/O/1/l/I) and returns it once in the API response. The page
+shows it and says "Catat sekarang — tidak akan ditampilkan lagi." After that
+it is unrecoverable and the owner must use the reset button. Creating a
+member sends only name and email: `readNewMember` is used, not
+`readRegistration`. The reset-password route accepts `{ generate: true }` to
+generate and return a temp password in the same way.
+
 Helper scripts run with `tsx` must wrap their work in `async function
 main()`. `package.json` has no `"type": "module"`, so tsx compiles them as
 CommonJS and rejects top-level `await`.
@@ -183,6 +192,7 @@ phase 4, where a 50+ case test suite will cover them:
 | TASK-06 | auth API routes: register, login, logout, me | done |
 | TASK-07 | login and register pages, route protection | done |
 | TASK-08 | user management API: create member, change and reset password | done |
+| TASK-09 | settings page: member creation with temp password, change password | done |
 | TASK-04 | production stage for the Mac mini | not started |
 
 Placeholder pages were dropped from TASK-02 on purpose. They prove nothing

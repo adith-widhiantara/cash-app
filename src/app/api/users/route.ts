@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { hashPassword } from "@/lib/password";
-import { readRegistration } from "@/lib/validation";
+import { hashPassword, generateTempPassword } from "@/lib/password";
+import { readNewMember } from "@/lib/validation";
 import { MAX_HOUSEHOLD_USERS } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Isian tidak terbaca." }, { status: 400 });
   }
 
-  const parsed = readRegistration(body);
+  const parsed = readNewMember(body);
 
   if (!parsed.ok) {
     return Response.json({ error: parsed.error }, { status: 400 });
@@ -67,19 +67,24 @@ export async function POST(request: Request) {
   });
 
   if (taken) {
-    return Response.json({ error: "Email itu sudah dipakai." }, { status: 409 });
+    return Response.json(
+      { error: "Email itu sudah dipakai." },
+      { status: 409 },
+    );
   }
+
+  const tempPassword = generateTempPassword();
 
   const user = await prisma.user.create({
     data: {
       email: parsed.value.email,
       name: parsed.value.name,
-      passwordHash: await hashPassword(parsed.value.password),
+      passwordHash: await hashPassword(tempPassword),
       role: "member",
       householdId: current.householdId,
     },
     select: { id: true, email: true, name: true, role: true },
   });
 
-  return Response.json(user, { status: 201 });
+  return Response.json({ ...user, tempPassword }, { status: 201 });
 }

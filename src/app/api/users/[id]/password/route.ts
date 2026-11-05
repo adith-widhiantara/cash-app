@@ -1,11 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
-import { MIN_PASSWORD_LENGTH, hashPassword } from "@/lib/password";
+import {
+  MIN_PASSWORD_LENGTH,
+  hashPassword,
+  generateTempPassword,
+} from "@/lib/password";
 
 export const dynamic = "force-dynamic";
 
-// There is no email in this app, so a member who forgets their password
-// cannot recover it alone. The owner sets a new one.
+// The owner resets a member's password. If body.generate is true, a secure
+// temp password is generated and returned in the response. Otherwise
+// body.newPassword is used.
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
@@ -34,14 +39,20 @@ export async function POST(
   }
 
   const data = (body ?? {}) as Record<string, unknown>;
-  const newPassword =
-    typeof data.newPassword === "string" ? data.newPassword : "";
 
-  if (newPassword.length < MIN_PASSWORD_LENGTH) {
-    return Response.json(
-      { error: `Password baru minimal ${MIN_PASSWORD_LENGTH} karakter.` },
-      { status: 400 },
-    );
+  let newPassword: string;
+
+  if (data.generate === true) {
+    newPassword = generateTempPassword();
+  } else {
+    newPassword =
+      typeof data.newPassword === "string" ? data.newPassword : "";
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      return Response.json(
+        { error: `Password baru minimal ${MIN_PASSWORD_LENGTH} karakter.` },
+        { status: 400 },
+      );
+    }
   }
 
   const target = await prisma.user.findUnique({
@@ -61,5 +72,5 @@ export async function POST(
     },
   });
 
-  return Response.json({ ok: true });
+  return Response.json({ ok: true, tempPassword: newPassword });
 }

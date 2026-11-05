@@ -22,6 +22,10 @@ export default async function HomePage() {
         Masuk sebagai {user.name} ({user.email}).
       </p>
 
+      <a href="/pengaturan" className="mb-4 block text-sm underline">
+        Pengaturan
+      </a>
+
       <KeluarButton />
     </main>
   );
