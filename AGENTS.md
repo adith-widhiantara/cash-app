@@ -59,3 +59,9 @@ a later commit does not remove it from history.
   notification. Keep the sentence structure, replace the values.
 - If a secret is ever committed, stop and report it. The key must be revoked
   and replaced. Deleting the file is not a fix.
+
+## Project memory
+
+`PROJECT_CONTEXT.md` in the repository root is the project's memory. Read it
+at the start of every session. Update its Status table at the end of every
+task, in the same commit as the work.
