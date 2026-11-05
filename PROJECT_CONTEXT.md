@@ -62,6 +62,18 @@ seeded categories end up orphaned. The second account is created by the
 first user from the settings page. There is no email, so there is no
 self-service password reset: the owner resets it.
 
+The routes live under `src/app/api/auth/`. `src/lib/auth.ts` touches the
+database and is server only; middleware must import `src/lib/session.ts`
+instead. Login returns the same message for a wrong password and an unknown
+email, and verifies against a throwaway hash when the email is unknown, so
+response time does not reveal which emails exist. There is no rate limiting
+yet: acceptable while the app is only reachable over Tailscale, and worth
+revisiting before any public hosting.
+
+Helper scripts run with `tsx` must wrap their work in `async function
+main()`. `package.json` has no `"type": "module"`, so tsx compiles them as
+CommonJS and rejects top-level `await`.
+
 ## Conventions
 
 - Money is an integer in full rupiah. Rp 15.000 is `15000`. Float and
@@ -133,6 +145,7 @@ phase 4, where a 50+ case test suite will cover them:
 | TASK-03b | driver adapter, Prisma Client singleton, seed | done |
 | TASK-03c | runtime probe, Prisma client resolves | done |
 | TASK-05 | auth primitives: password hashing, session tokens, tokenVersion | done |
+| TASK-06 | auth API routes: register, login, logout, me | done |
 | TASK-04 | production stage for the Mac mini | not started |
 
 Placeholder pages were dropped from TASK-02 on purpose. They prove nothing
