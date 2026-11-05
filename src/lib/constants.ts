@@ -52,6 +52,9 @@ export const INBOX_STATUSES = [
 ] as const;
 export type InboxStatus = (typeof INBOX_STATUSES)[number];
 
+/** Two people, one household. Raise this if that ever changes. */
+export const MAX_HOUSEHOLD_USERS = 2;
+
 /** The wallet account. Created automatically at setup, never optional. */
 export const CASH_ACCOUNT_NAME = "Cash";
 

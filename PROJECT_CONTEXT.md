@@ -87,6 +87,24 @@ Do not grep rendered HTML for a phrase that interpolates a variable. React
 splits those into separate text nodes, so the whole phrase never appears
 contiguously.
 
+User management lives at `src/app/api/users/` and
+`src/app/api/auth/password/`. Only the owner creates the second account, and
+a household holds at most `MAX_HOUSEHOLD_USERS` people. Changing a password
+raises `tokenVersion` and then issues a fresh cookie, so every other device
+is logged out while the current one stays signed in. The owner can reset a
+member's password, which logs that member out everywhere, because there is
+no email and so no self-service recovery. `POST /api/auth/logout-all`
+revokes every session including the current one, which is what to use when
+a phone is lost.
+
+Route params are a Promise in Next.js 16 and must be awaited:
+`const { id } = await params`.
+
+When testing authorisation, log the account in again first and confirm the
+session is live. A 401 and a 403 mean different things: a revoked cookie is
+rejected before the role check runs, so an authorisation path can look
+tested when it never ran.
+
 Helper scripts run with `tsx` must wrap their work in `async function
 main()`. `package.json` has no `"type": "module"`, so tsx compiles them as
 CommonJS and rejects top-level `await`.
@@ -164,6 +182,7 @@ phase 4, where a 50+ case test suite will cover them:
 | TASK-05 | auth primitives: password hashing, session tokens, tokenVersion | done |
 | TASK-06 | auth API routes: register, login, logout, me | done |
 | TASK-07 | login and register pages, route protection | done |
+| TASK-08 | user management API: create member, change and reset password | done |
 | TASK-04 | production stage for the Mac mini | not started |
 
 Placeholder pages were dropped from TASK-02 on purpose. They prove nothing
