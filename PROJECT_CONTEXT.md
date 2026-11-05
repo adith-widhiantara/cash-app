@@ -41,6 +41,27 @@ Leaving these flags visible in the config is deliberate, so it reads as a
 decision rather than an oversight. Do not enable them without a strong
 reason.
 
+## Auth
+
+Passwords use `scrypt` from `node:crypto`, stored as
+`scrypt$N$r$p$salt$hash`. Do not switch to bcrypt or argon2: both are
+native modules and the production machine is a different CPU architecture.
+
+Sessions are a HS256 JWT in an httpOnly cookie, valid for one year.
+`JWT_SECRET` lives in `.env` and is passed through `compose.yaml`. Changing
+it logs everyone out. `src/lib/session.ts` must never import Prisma,
+because it also runs in middleware on the edge runtime.
+
+`User.tokenVersion` is checked on every request that loads the user.
+Raising it revokes every session for that user at once, which is what to do
+if a phone is lost.
+
+Registration is open only until the first user exists. That user joins the
+household created by the seed, and does not create a new one, or the 14
+seeded categories end up orphaned. The second account is created by the
+first user from the settings page. There is no email, so there is no
+self-service password reset: the owner resets it.
+
 ## Conventions
 
 - Money is an integer in full rupiah. Rp 15.000 is `15000`. Float and
@@ -110,6 +131,8 @@ phase 4, where a 50+ case test suite will cover them:
 | TASK-02d | this file | done |
 | TASK-03 | Prisma schema and first migration | done |
 | TASK-03b | driver adapter, Prisma Client singleton, seed | done |
+| TASK-03c | runtime probe, Prisma client resolves | done |
+| TASK-05 | auth primitives: password hashing, session tokens, tokenVersion | done |
 | TASK-04 | production stage for the Mac mini | not started |
 
 Placeholder pages were dropped from TASK-02 on purpose. They prove nothing

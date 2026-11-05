@@ -35,6 +35,8 @@ model User {
   name         String
   /// "owner" or "member". No permission system: both see and approve everything.
   role         String   @default("member")
+  /// Raising this invalidates every existing session for this user.
+  tokenVersion Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
