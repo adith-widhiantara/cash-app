@@ -76,6 +76,12 @@ Prisma 7 also requires a driver adapter for the client
 with Turbopack needs `serverExternalPackages: ['@prisma/client']` in
 `next.config.ts` or the client fails to resolve at runtime.
 
+The client is a singleton in `src/lib/prisma.ts`, reused across hot reloads
+so development does not exhaust SQLite connections. The seed in
+`prisma/seed.ts` creates only the household and the 14 categories, and is
+safe to re-run. Users and accounts are created by the application, because
+users need password hashing and accounts need the setup flow.
+
 ## Shared code
 
 | File | Holds |
@@ -103,7 +109,7 @@ phase 4, where a 50+ case test suite will cover them:
 | TASK-02c | git history audit, clean | done |
 | TASK-02d | this file | done |
 | TASK-03 | Prisma schema and first migration | done |
-| TASK-03b | driver adapter, Prisma Client singleton, seed | next |
+| TASK-03b | driver adapter, Prisma Client singleton, seed | done |
 | TASK-04 | production stage for the Mac mini | not started |
 
 Placeholder pages were dropped from TASK-02 on purpose. They prove nothing
