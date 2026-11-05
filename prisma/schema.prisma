@@ -1,0 +1,298 @@
+// SQLite has no enums and no scalar lists. Fields that would be an enum are
+// String, and the allowed values live in src/lib/constants.ts, which is the
+// single source of truth. Category.keywords is a JSON string, not a list.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Household {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users            User[]
+  accounts         Account[]
+  categories       Category[]
+  transactions     Transaction[]
+  inboxItems       InboxItem[]
+  recurringIncomes RecurringIncome[]
+  parsingRules     ParsingRule[]
+  deviceTokens     DeviceToken[]
+  attachments      Attachment[]
+  balanceChecks    BalanceCheck[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  /// "owner" or "member". No permission system: both see and approve everything.
+  role         String   @default("member")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id])
+
+  enteredTransactions  Transaction[] @relation("TransactionEnteredBy")
+  approvedTransactions Transaction[] @relation("TransactionApprovedBy")
+  approvedInboxItems   InboxItem[]   @relation("InboxApprovedBy")
+  deviceTokens         DeviceToken[]
+
+  @@index([householdId])
+}
+
+model Account {
+  id   String @id @default(cuid())
+  name String
+  /// "cash", "bank", "ewallet" or "other".
+  type String
+  /// Full rupiah, integer. Never a float.
+  initialBalance Int @default(0)
+  /// Backdating is rejected before this date: initialBalance already covers it.
+  startDate  DateTime
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id])
+
+  transactions      Transaction[]     @relation("TransactionAccount")
+  incomingTransfers Transaction[]     @relation("TransactionToAccount")
+  recurringIncomes  RecurringIncome[]
+  balanceChecks     BalanceCheck[]
+
+  @@unique([householdId, name])
+  @@index([householdId])
+}
+
+model Category {
+  id   String @id @default(cuid())
+  name String
+  /// "income" or "expense".
+  kind  String
+  icon  String?
+  color String?
+  /// JSON array of strings. Grows every time a user corrects a category, so
+  /// the regex layer gradually takes over from the AI layer.
+  keywords   String   @default("[]")
+  isArchived Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id])
+
+  transactions     Transaction[]
+  recurringIncomes RecurringIncome[]
+
+  @@unique([householdId, name, kind])
+  @@index([householdId])
+}
+
+model Transaction {
+  id String @id @default(cuid())
+  /// "income", "expense" or "transfer". A transfer is one record, never two,
+  /// and never counts as income or expense in any report.
+  type String
+  /// Full rupiah, integer, always positive. The sign is a display concern.
+  amount Int
+  date   DateTime
+  note   String?
+
+  accountId String
+  account   Account @relation("TransactionAccount", fields: [accountId], references: [id])
+
+  /// Destination account. Set only when type is "transfer".
+  toAccountId String?
+  toAccount   Account? @relation("TransactionToAccount", fields: [toAccountId], references: [id])
+
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id])
+
+  /// Audit trail, not permissions. Exactly one of these two is set.
+  enteredById String?
+  enteredBy   User?   @relation("TransactionEnteredBy", fields: [enteredById], references: [id])
+
+  enteredByTokenId String?
+  enteredByToken   DeviceToken? @relation("TransactionEnteredByToken", fields: [enteredByTokenId], references: [id])
+
+  /// Null for a direct manual entry that never passed through the Inbox.
+  approvedById String?
+  approvedBy   User?   @relation("TransactionApprovedBy", fields: [approvedById], references: [id])
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id])
+
+  /// "manual", "voice", "photo", "sms", "email", "notification", "recurring".
+  source String @default("manual")
+  /// The original text, kept so a parsing mistake can always be traced back.
+  rawInput String?
+  /// "confirmed" or "pending".
+  status String @default("confirmed")
+
+  /// Confidence in the amount and in the date are separate on purpose. A
+  /// vague phrase like "minggu lalu" is a certain amount on an uncertain date.
+  amountConfidence Float?
+  dateConfidence   Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  inboxItems  InboxItem[]
+  attachments Attachment[]
+
+  @@index([householdId, date])
+  @@index([accountId])
+  @@index([toAccountId])
+}
+
+model InboxItem {
+  id       String  @id @default(cuid())
+  rawInput String
+  /// Same values as Transaction.source.
+  source     String
+  /// The parser output, stored verbatim as JSON.
+  parsedJson String?
+  confidence Float?
+  /// "pending", "approved", "rejected" or "missed".
+  status String @default("pending")
+
+  /// Same amount, same account, within DUPLICATE_WINDOW_MINUTES. Flagged and
+  /// shown side by side for the user to decide. Never discarded automatically.
+  suspectedDuplicate Boolean @default(false)
+  duplicateOfId      String?
+  duplicateOf        InboxItem?  @relation("InboxDuplicate", fields: [duplicateOfId], references: [id])
+  duplicates         InboxItem[] @relation("InboxDuplicate")
+
+  /// Approving does not delete the item. It sets the status and links the
+  /// Transaction it created, so undo is always possible.
+  linkedTransactionId String?
+  linkedTransaction   Transaction? @relation(fields: [linkedTransactionId], references: [id])
+
+  approvedById String?
+  approvedBy   User?     @relation("InboxApprovedBy", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([householdId, status])
+  @@index([duplicateOfId])
+}
+
+model RecurringIncome {
+  id   String @id @default(cuid())
+  name String
+  /// A guess only. Salary varies, so the user edits it at approval time.
+  /// Income is never auto-committed.
+  expectedAmount Int
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id])
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  /// 1 to 31. A date falling on a holiday still creates the InboxItem.
+  dayOfMonth Int
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id])
+
+  @@index([householdId])
+}
+
+model ParsingRule {
+  id   String @id @default(cuid())
+  name String
+  /// Which bank or e-wallet this rule is for.
+  source String
+  /// A regular expression. Editable from the UI so a bank changing its
+  /// wording does not require a code change.
+  pattern String
+  /// Higher runs first.
+  priority  Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id])
+
+  @@index([householdId])
+}
+
+model DeviceToken {
+  id   String @id @default(cuid())
+  name String
+  /// Only the hash is stored. Used by the iOS Shortcut, never a user password.
+  tokenHash  String    @unique
+  lastUsedAt DateTime?
+  isRevoked  Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id])
+
+  enteredTransactions Transaction[] @relation("TransactionEnteredByToken")
+
+  @@index([householdId])
+}
+
+model Attachment {
+  id String @id @default(cuid())
+  /// A path on disk under uploads/. The file is never a blob in the database.
+  filePath  String
+  mimeType  String?
+  sizeBytes Int?
+  createdAt DateTime @default(now())
+
+  transactionId String?
+  transaction   Transaction? @relation(fields: [transactionId], references: [id])
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id])
+
+  @@index([householdId])
+  @@index([transactionId])
+}
+
+model BalanceCheck {
+  id String @id @default(cuid())
+
+  accountId String
+  account   Account @relation(fields: [accountId], references: [id])
+
+  checkedAt DateTime @default(now())
+  /// What the bank app says.
+  reportedBalance Int
+  /// What initialBalance plus the transactions says. Never stored elsewhere.
+  computedBalance Int
+  /// reportedBalance minus computedBalance. Non-zero means something was missed.
+  difference Int
+
+  householdId String
+  household   Household @relation(fields: [householdId], references: [id])
+
+  @@index([householdId])
+  @@index([accountId])
+}

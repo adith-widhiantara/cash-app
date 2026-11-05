@@ -60,6 +60,22 @@ reason.
   null. An invented name is rejected and forced to null, which sends the
   item to the Inbox.
 
+## Prisma
+
+Pinned to Prisma 7. Do not install `prisma` without a version: the npm
+`latest` tag points at the Prisma 8 release candidate, whose CLI does not
+read `schema.prisma` and has no `migrate` command.
+
+In Prisma 7 the database URL lives in `prisma.config.ts` at the project
+root, not in the `datasource` block. `DATABASE_URL` comes from
+`compose.yaml`, not from `.env`, and is the absolute path
+`file:/app/data/dev.db`.
+
+Prisma 7 also requires a driver adapter for the client
+(`@prisma/adapter-better-sqlite3`). Migrations do not need it. Next.js 16
+with Turbopack needs `serverExternalPackages: ['@prisma/client']` in
+`next.config.ts` or the client fails to resolve at runtime.
+
 ## Shared code
 
 | File | Holds |
@@ -85,8 +101,9 @@ phase 4, where a 50+ case test suite will cover them:
 | TASK-02a | `constants.ts`, `money.ts`, `tsx` | done |
 | TASK-02b | first commit and push, ignore rules | done |
 | TASK-02c | git history audit, clean | done |
-| TASK-02d | this file | in progress |
-| TASK-03 | Prisma schema, migration, seed | next |
+| TASK-02d | this file | done |
+| TASK-03 | Prisma schema and first migration | done |
+| TASK-03b | driver adapter, Prisma Client singleton, seed | next |
 | TASK-04 | production stage for the Mac mini | not started |
 
 Placeholder pages were dropped from TASK-02 on purpose. They prove nothing
